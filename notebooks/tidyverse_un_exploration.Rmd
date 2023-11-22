@@ -1,0 +1,167 @@
+---
+title: "UN Exploration using Tidyverse"
+output: html_notebook
+---
+```{r}
+library('tidyverse')
+```
+
+1. Using the read_csv() function, read the GDP dataset into your notebook as a tibble called gdp_df. After reading it in, inspect the first 10 rows and then inspect the last 10 rows.
+
+```{r}
+gdp_df <- read_csv('../data/gdp_per_capita.csv', show_col_types = FALSE)
+```
+
+```{r}
+gdp_df |> 
+  head(10)
+```
+```{r}
+gdp_df |> 
+  tail(10)
+```
+2. Drop the 'Value Footnotes' column, and rename the remaining columns to 'Country', 'Year', and 'GDP_Per_Capita'.
+
+Options can be:
+gdp_df <- gdp_df[-c(4)]
+
+```{r}
+gdp_df <- gdp_df |> 
+  select(Country = `Country or Area`, Year, Value)
+```
+
+3. Which years are represented in this dataset? How many observations are there per year? Make a plot to view the number of observations per year.
+
+```{r}
+unique(gdp_df$Year)
+```
+```{r}
+countries_per_year <- gdp_df |> 
+  count(Year) |> 
+  rename(Count = n)
+countries_per_year
+```
+```{r}
+ggplot(countries_per_year, aes(x = Year, y = Count)) + geom_col()
+```
+
+4. How many countries are represented in this dataset? Which countries have the fewest observations?
+
+```{r}
+n_distinct(gdp_df$Country)
+```
+```{r}
+country_count <- gdp_df |> 
+  count(Country) |> 
+  rename(Count = n) |> 
+  arrange(Count)
+country_count
+```
+5. Create a new dataframe by subsetting gdp_df to just the year 2014. Call this new dataframe gdp_2014.
+
+```{r}
+gdp_2014 <- gdp_df |> 
+  filter(Year == 2014)
+gdp_2014
+```
+6. Use summary() to find the summary statistics for GDP per capita in 2014.
+
+```{r}
+gdp_2014 |> 
+  summarize(mean = mean(Value), sum = sum(Value), median = median(Value), min = min(Value), max = max(Value))
+```
+7. Create a histogram of GDP Per Capita numbers for 2014 (you may wish to adjust the number of bins for your histogram).
+
+```{r}
+ggplot(gdp_2014, aes(x = Value)) + geom_histogram()
+```
+8. Find the top 5 counties and bottom 5 countries by GDP per capita in 2014.
+
+```{r}
+gdp_2014 |>
+  arrange(desc(Value)) |> 
+  head(5)
+```
+```{r}
+gdp_2014 |> 
+  arrange(desc(Value)) |> 
+  tail(5)
+```
+9. Now, return to the full dataset, gdp_df. Pivot the data for 1990 and 2018 (using the pandas .pivot_wider() method or another method) so that each row corresponds to a country, each column corresponds to a year, and the values in the table give the GDP_Per_Capita amount. Drop any rows that are missing values for either 1990 or 2018. Save the result to a dataframe named gdp_pivoted.
+
+```{r}
+gdp_pivoted <- gdp_df |>
+  filter(Year %in% c(1990, 2018)) |>
+  drop_na(Value) |> 
+  pivot_wider(
+    names_from = Year, 
+    values_from = Value
+  )
+gdp_pivoted
+```
+10. Create a new column in gdp_pivoted named Percent_Change. This column should contain the percent change in GDP_Per_Capita from 1990 to 2018. Hint: Percent change is calculated as 100*(New Value - Old Value) / Old Value.
+
+```{r}
+gdp_pivoted <- gdp_pivoted |> 
+  mutate(Percent_Change = 100*(`2018` - `1990`)/`1990`)
+gdp_pivoted
+```
+11. How many countries experienced a negative percent change in GDP per capita from 1990 to 2018?
+
+```{r}
+neg_percent_change <- gdp_pivoted |> 
+  count(Percent_Change <= 0) |> 
+  rename(Count = n)
+neg_percent_change
+```
+12. Which country had the highest % change in GDP per capita? Create a line plot showing this country's GDP per capita for all years for which you have data. Put both line charts on the same plot.
+
+```{r}
+gdp_pivoted |>
+  arrange(desc(Percent_Change)) |>
+  head(2)
+```
+```{r}
+gdp_df |> 
+  filter(Country %in% c('Equatorial Guinea', 'China')) |>
+  ggplot(aes(x = Year, y = Value, color = Country)) + 
+  geom_line()
+```
+
+13. Read in continents.csv contained in the data folder into a new dataframe called continents. We will be using this dataframe to add a new column to our dataset.
+
+```{r}
+continents <- read_csv('../data/continents.csv')
+```
+
+14. Merge gdp_df and continents. Keep only the countries that appear in both data frames. Save the result back to gdp_df.
+
+```{r}
+gdp_df_merge <- merge(gdp_df, continents, by="Country")
+```
+
+15. Determine the number of countries per continent. Create a bar chart showing this.
+
+```{r}
+gdp_df_merge |>
+  group_by(Continent) |> 
+  summarize(Country_count = n_distinct(Country)) |> 
+  ggplot(aes(x = Continent, y = Country_count, fill = Continent)) + geom_col()
+```
+
+16. Create a boxplot showing GDP per capita in 2018 split out by continent. What do you notice?
+
+```{r}
+options(scipen = 999)
+gdp_df_merge |> 
+  filter(Year == 2018) |>
+  group_by(Continent) |>
+  ggplot(aes(x = Continent, y = Value, fill = Continent)) + geom_boxplot() + scale_y_continuous(labels = scales::comma)
+```
+17. Read life_expectancy.csv into a tibble named life_expectancy. Do not modify the csv file in order to read this data in.
+
+```{r}
+life_expectancy <- read_csv('../data/life_expectancy.csv')
+```
+18. Drop the Country Code, Indicator Name, and Indicator Code columns. Then use pivot_longer to convert your data from wide to long. That is, instead of having one row per country and multiple colums per year, we want to have multiple rows per country and a single column for year. After melting, rename the columns to Country, Year, and Life_Expectancy.
+
