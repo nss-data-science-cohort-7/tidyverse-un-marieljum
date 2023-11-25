@@ -55,7 +55,8 @@ country_count <- gdp_df |>
   count(Country) |> 
   rename(Count = n) |> 
   arrange(Count)
-country_count
+country_count |> 
+  head(2   )
 ```
 5. Create a new dataframe by subsetting gdp_df to just the year 2014. Call this new dataframe gdp_2014.
 
@@ -137,13 +138,16 @@ continents <- read_csv('../data/continents.csv')
 14. Merge gdp_df and continents. Keep only the countries that appear in both data frames. Save the result back to gdp_df.
 
 ```{r}
-gdp_df_merge <- merge(gdp_df, continents, by="Country")
+gdp_df <- merge(gdp_df, continents, by="Country")
+gdp_df |> 
+  head(3)
+  
 ```
 
 15. Determine the number of countries per continent. Create a bar chart showing this.
 
 ```{r}
-gdp_df_merge |>
+gdp_df |>
   group_by(Continent) |> 
   summarize(Country_count = n_distinct(Country)) |> 
   ggplot(aes(x = Continent, y = Country_count, fill = Continent)) + geom_col()
@@ -153,7 +157,7 @@ gdp_df_merge |>
 
 ```{r}
 options(scipen = 999)
-gdp_df_merge |> 
+gdp_df |> 
   filter(Year == 2018) |>
   group_by(Continent) |>
   ggplot(aes(x = Continent, y = Value, fill = Continent)) + geom_boxplot() + scale_y_continuous(labels = scales::comma)
@@ -163,7 +167,12 @@ gdp_df_merge |>
 ```{r}
 life_expectancy <- read_csv('../data/life_expectancy.csv', skip = 3)
 ```
-18. Drop the Country Code, Indicator Name, and Indicator Code columns. Then use pivot_longer to convert your data from wide to long. That is, instead of having one row per country and multiple colums per year, we want to have multiple rows per country and a single column for year. After melting, rename the columns to Country, Year, and Life_Expectancy.
+```{r}
+life_expectancy
+```
+
+
+18. Drop the Country Code, Indicator Name, and Indicator Code columns. Then use pivot_longer to convert your data from wide to long. That is, instead of having one row per country and multiple columns per year, we want to have multiple rows per country and a single column for year. After melting, rename the columns to Country, Year, and Life_Expectancy.
 
 ```{r}
 life_expectancy <- life_expectancy |> 
@@ -183,4 +192,77 @@ life_expectancy |>
   head(1)
 ```
 20. Merge gdp_df and life_expectancy, keeping all countries and years that appear in both DataFrames. Save the result to a new DataFrame named gdp_le. If you get any errors in doing this, read them carefully and correct them. Look at the first five rows of your new data frame to confirm it merged correctly. Also, check the last five rows to make sure the data is clean and as expected.
+
+```{r}
+gdp_le <- merge(gdp_df, life_expectancy, by = c("Country", "Year")) |> 
+  rename(GDP = Value)
+gdp_le |> 
+  head(5)
+```
+```{r}
+gdp_le |> 
+  tail(5)
+```
+21. Create a new DataFrame, named gdp_le_2019 by extracting data for the year 2019 from gdp_le. How many countries have a life expectancy of at least 80 in 2019?
+
+```{r}
+gdp_le_2019 <- gdp_le |>
+  filter(Year == 2019)
+gdp_le_2019 |>
+  filter(`Life Expectancy` >= 80) |> 
+  nrow()
+```
+
+22. Find the countries that had the top 3 largest GDP per capita figures for 2019. Create a plot showing the change in life expectancy over time for these three countries. This plot should be faceted so that each country is contained in its own figure.
+
+```{r}
+gdp_le_2019 |> 
+  arrange(desc(GDP)) |> 
+  head(3)
+```
+```{r}
+gdp_le |> 
+  filter(Country == c("Macao SAR, China", "Luxembourg", "Singapore")) |> 
+  ggplot(aes(x = Year, y = `Life Expectancy`)) + geom_line() + facet_wrap(~Country)
+```
+
+23. Create a scatter plot of Life Expectancy vs GDP per Capita for the year 2019. What do you notice?
+
+```{r}
+gdp_le_2019 |> 
+  ggplot(aes(x = GDP, y = `Life Expectancy`)) + geom_point()
+```
+
+There seems to be a positive non-linear relationship betwween the two variables. 
+
+24. Find the correlation between Life Expectancy and GDP per Capita for the year 2019. What is the meaning of this number?
+
+```{r}
+cor(gdp_le_2019$GDP, gdp_le_2019$`Life Expectancy`)
+```
+Result is NA because either column could contain missing values. 
+
+```{r}
+cor(gdp_le_2019$GDP, gdp_le_2019$`Life Expectancy`, use = "complete.obs")
+```
+The correlation coefficient shows that there is a strong positive relationship between the two variables. 
+
+25. Add a column to gdp_le_2019 and calculate the logarithm of GDP per capita. Find the correlation between the log of GDP per capita and life expectancy. How does this compare to the calculation in the previous part? Look at a scatter plot to see if the result of this calculation makes sense.
+
+```{r}
+gdp_le_2019 <- gdp_le_2019 |> 
+  mutate(GDP_log = log(GDP))
+gdp_le_2019 |> 
+  head(5)
+```
+```{r}
+cor(gdp_le_2019$GDP_log, gdp_le_2019$`Life Expectancy`, use = "complete.obs")
+```
+
+There is a stronger positive linear relationship between life expectancy and the logarithmic of GDP per capita in 2019. 
+
+```{r}
+gdp_le_2019 |> 
+  ggplot(aes(x = GDP_log, y = `Life Expectancy`)) + geom_point()
+```
 
